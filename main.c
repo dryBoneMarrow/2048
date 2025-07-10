@@ -7,6 +7,7 @@
 
 void drawGrid(unsigned int* grid)
 {
+    puts("Move using wasd, confirm move with enter. q to quit");
     unsigned int* pos = grid;
     int i, j;
     for (i = 0; i < 4; i++) {
@@ -21,7 +22,9 @@ void drawGrid(unsigned int* grid)
 int updateGrid(unsigned int* grid, char move)
 {
     int changed = 0;
-    int i, j;
+    int i, j, k;
+    unsigned int* mergedCells[16] = { 0 };
+    int mergedCellsCounter = 0;
     switch (move) {
     case 'w':
         for (i = 1; i < 4; i++) {
@@ -32,14 +35,25 @@ int updateGrid(unsigned int* grid, char move)
                 int shift = 0;
                 if (*currCell) {
                     *currCell = 0;
-                    while (shift <= i && !*(currCell - 4 * shift - 4)) {
+                    while (shift < i && !*(currCell - 4 * shift - 4)) {
                         shift++;
                         changed = 1;
                     }
-                    if (shift <= i && currCellValue == *(currCell - shift * 4 - 4)) {
-                        shift++;
-                        changed = 1;
-                        currCellValue *= 2;
+                    if (shift < i && currCellValue == *(currCell - shift * 4 - 4)) {
+                        int alreadymergerged = 0;
+                        for (k = 0; k < mergedCellsCounter; k++) {
+                            if ((currCell - shift * 4 - 4) == mergedCells[k]) {
+                                alreadymergerged = 1;
+                                break;
+                            }
+                        }
+                        if (!alreadymergerged) {
+                            shift++;
+                            changed = 1;
+                            currCellValue *= 2;
+                            mergedCells[mergedCellsCounter] = currCell - shift * 4;
+                            mergedCellsCounter++;
+                        }
                     }
                     newCell = currCell - 4 * shift;
                     *newCell = currCellValue;
@@ -61,9 +75,20 @@ int updateGrid(unsigned int* grid, char move)
                         changed = 1;
                     }
                     if (shift < i && currCellValue == *(currCell - shift - 1)) {
-                        shift++;
-                        changed = 1;
-                        currCellValue *= 2;
+                        int alreadymergerged = 0;
+                        for (k = 0; k < mergedCellsCounter; k++) {
+                            if ((currCell - shift - 1) == mergedCells[k]) {
+                                alreadymergerged = 1;
+                                break;
+                            }
+                        }
+                        if (!alreadymergerged) {
+                            shift++;
+                            changed = 1;
+                            currCellValue *= 2;
+                            mergedCells[mergedCellsCounter] = currCell - shift * 4;
+                            mergedCellsCounter++;
+                        }
                     }
                     newCell = currCell - shift;
                     *newCell = currCellValue;
@@ -85,9 +110,20 @@ int updateGrid(unsigned int* grid, char move)
                         changed = 1;
                     }
                     if (shift < 3 - i && currCellValue == *(currCell + shift * 4 + 4)) {
-                        shift++;
-                        changed = 1;
-                        currCellValue *= 2;
+                        int alreadymergerged = 0;
+                        for (k = 0; k < mergedCellsCounter; k++) {
+                            if ((currCell + shift * 4 + 4) == mergedCells[k]) {
+                                alreadymergerged = 1;
+                                break;
+                            }
+                        }
+                        if (!alreadymergerged) {
+                            shift++;
+                            changed = 1;
+                            currCellValue *= 2;
+                            mergedCells[mergedCellsCounter] = currCell + shift * 4;
+                            mergedCellsCounter++;
+                        }
                     }
                     newCell = currCell + 4 * shift;
                     *newCell = currCellValue;
@@ -109,9 +145,20 @@ int updateGrid(unsigned int* grid, char move)
                         changed = 1;
                     }
                     if (shift < 3 - i && currCellValue == *(currCell + shift + 1)) {
-                        shift++;
-                        changed = 1;
-                        currCellValue *= 2;
+                        int alreadymergerged = 0;
+                        for (k = 0; k < mergedCellsCounter; k++) {
+                            if ((currCell + shift + 1) == mergedCells[k]) {
+                                alreadymergerged = 1;
+                                break;
+                            }
+                        }
+                        if (!alreadymergerged) {
+                            shift++;
+                            changed = 1;
+                            currCellValue *= 2;
+                            mergedCells[mergedCellsCounter] = currCell + shift + 1;
+                            mergedCellsCounter++;
+                        }
                     }
                     newCell = currCell + shift;
                     *newCell = currCellValue;
@@ -119,7 +166,10 @@ int updateGrid(unsigned int* grid, char move)
             }
         }
         break;
+    default:
+        puts("The impossible cheese got eaten");
     }
+    if (!changed) puts("Can't move in this direction");
     return changed;
 }
 
@@ -141,15 +191,16 @@ int insertNumber(unsigned int* grid)
     }
     int randField = rand() / ((RAND_MAX + 1u) / counter);
     unsigned int chosenField = emptyFields[randField];
-    int cellContent = 1;
     double unweightedRand = (double)rand() / RAND_MAX;
-    double comp = 0.5;
-    counter = 1;
-    while (unweightedRand > comp) {
-        cellContent *= 2;
-        counter++;
-        comp += (double)1 / (1 << counter);
-    }
+    int cellContent = (unweightedRand < 0.75) ? 2 : 4;
+
+    // double comp = 0.5;
+    // counter = 1;
+    // while (unweightedRand > comp) {
+    //     cellContent *= 2;
+    //     counter++;
+    //     comp += (double)1 / (1 << counter);
+    // }
     grid[chosenField] = cellContent;
     return 0;
 }
@@ -201,17 +252,23 @@ int main(int argc, char** argv)
     int input;
     unsigned int score = 0;
     srand(time(NULL));
+    insertNumber(grid);
     for (;;) {
-        CLEAR_SCREEN();
         insertNumber(grid);
         updateScore(grid, &score);
+        CLEAR_SCREEN();
         drawGrid(grid);
         if (!validMoves(grid)) {
             printf("SCORE: %u\n", score);
             return 0;
         }
         do {
-            while (!strchr("wasd", input = getchar())) { }
+            while (!strchr("wasd", input = getchar())) {
+                if (input == 'q') {
+                    printf("SCORE: %u\n", score);
+                    return 0;
+                }
+            }
         } while (!updateGrid(grid, input));
     }
 }

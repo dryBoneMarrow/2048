@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +22,7 @@ char* numberColored(unsigned int number)
     case 64:
         return "\e[36m64\e[0m";
     case 128:
-        return "\e[38;5;227;m128\e[0m";
+        return "\e[38;5;129;m128\e[0m";
     case 256:
         return "\e[38;5;183;m256\e[0m";
     case 512:
@@ -34,25 +35,26 @@ char* numberColored(unsigned int number)
         return "\e[38;5;174;m4096\e[0m";
     case 8192:
         return "\e[38;5;202;m256\e[0m";
-    default:
+    default:;
         char* string;
         sprintf(string, "\e[38;5;122%u\e[0m", number);
         return string;
     }
 }
 
-void drawGrid(unsigned int* grid)
+void drawGrid(unsigned int* grid, int score)
 {
     puts("Move using wasd, confirm move with enter. q to quit\n");
     unsigned int* pos = grid;
     int i, j;
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 4; j++) {
-            *pos ? printf("\e[1m%s\e[0m\t", numberColored(*pos)) : printf("x\t");
+            *pos ? printf("\t\e[1m%s\e[0m", numberColored(*pos)) : printf("\tx");
             pos++;
         }
         printf("\n\n\n");
     }
+    printf("SCORE: %d\n", score);
 }
 
 int iCondWA(int i) { return i < 4; }
@@ -126,6 +128,7 @@ int updateGrid(unsigned int* grid, char move)
     default:
         return changed;
     }
+
     for (i = dir.i_start; dir.iCond(i); i = dir.iUpdate(i)) {
         for (j = 0; j < 4; j++) {
             unsigned int* currCell = grid + i * dir.iMult + j * dir.jMult;
@@ -193,6 +196,7 @@ int insertNumber(unsigned int* grid)
 void updateScore(unsigned int* grid, unsigned int* score)
 {
     int i = 0;
+    *score *= 0.8;
     for (i = 0; i < 16; i++) {
         *score += grid[i];
     }
@@ -203,7 +207,7 @@ int validMoves(unsigned int* grid)
     int i, j;
     int lastNumber = 0;
 
-    // Do 0 occur
+    // Does 0 occur
     for (i = 0; i < 16; i++)
         if (!*(grid + i)) return 1;
 
@@ -231,8 +235,16 @@ int validMoves(unsigned int* grid)
     return 0;
 }
 
+void intHandler(int blob)
+{
+    printf("\e[?25h");
+    exit(130);
+}
+
 int main(int argc, char** argv)
 {
+    signal(SIGINT, intHandler);
+    printf("\e[?25l");
     unsigned int grid[16] = { 0u };
     int input;
     unsigned int score = 0;
@@ -242,15 +254,17 @@ int main(int argc, char** argv)
         insertNumber(grid);
         updateScore(grid, &score);
         CLEAR_SCREEN();
-        drawGrid(grid);
+        drawGrid(grid, score);
         if (!validMoves(grid)) {
-            printf("SCORE: %u\n", score);
+            // printf("SCORE: %u\n", score);
+            printf("\e[?25h");
             return 0;
         }
         do {
             while (!strchr("wasd", input = getchar())) {
                 if (input == 'q') {
-                    printf("SCORE: %u\n", score);
+                    // printf("SCORE: %u\n", score);
+                    printf("\e[?25h");
                     return 0;
                 }
             }
